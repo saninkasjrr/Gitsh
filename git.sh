@@ -71,7 +71,9 @@ branch_management() {
     do
       case $REPLY in
         1)
-          read -p "Enter the branch name to switch to: " branch_name
+          echo -e "${GREEN}Available branches:${RESET}"
+          git branch -a
+          read -p "${GREEN}Enter the branch name to switch to:${RESET} " branch_name
           if ! git rev-parse --verify "$branch_name" >/dev/null 2>&1; then
             echo "${RED}Invalid branch name. Please try again.${RESET}"
           else
@@ -80,7 +82,7 @@ branch_management() {
           fi
           ;;
         2)
-          read -p "Enter the new branch name: " branch_name
+          read -p "${GREEN}Enter the new branch name:${RESET} " branch_name
           if [ -z "$branch_name" ]; then
             echo "${RED}Branch name cannot be empty. Please try again.${RESET}"
           else
