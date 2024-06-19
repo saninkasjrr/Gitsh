@@ -202,29 +202,76 @@ interact_with_commit() {
 
 # Function to view and interact with recent commits
 view_commits() {
-  commits=($(git log --pretty=format:"%h|%an|%s" -n 10))
-  if [ ${#commits[@]} -eq 0 ]; then
-    echo -e "${RED}No commits to display.${RESET}"
-    return
-  fi
+  local commits=()
+  local commit_count=10  # Number of commits to display initially
+  local offset=0         # Offset to fetch additional commits
+  local view_all_commits=false  # Flag to track current view state (false = show recent commits)
 
   while true; do
+    if ! $view_all_commits; then
+      mapfile -t commits < <(git log --skip="$offset" --pretty=format:"%h %an %s" -n "$commit_count")
+    else
+      mapfile -t commits < <(git log --pretty=format:"%h %an %s")
+      offset=0
+    fi
+
+    if [ ${#commits[@]} -eq 0 ]; then
+      echo -e "${RED}No commits to display.${RESET}"
+      return
+    fi
+
     clear
     echo -e "${GREEN}Recent commits:${RESET}"
     for i in "${!commits[@]}"; do
-      IFS='|' read -r hash author message <<< "${commits[$i]}"
-      echo "$i) ${hash} - ${author}: ${message}"
+      echo "$i) ${commits[$i]}"
     done
-    read -p "${GREEN}Enter the commit number to view details or press Enter to go back:${RESET} " commit_number
-    if [ -z "$commit_number" ]; then
+
+    # Prompt for commit number or options
+    if ! $view_all_commits; then
+      echo -e "${GREEN}extra:${RESET} x) View newer commits  y) View older commits  z) View all commits"
+    else
+      echo -e "${GREEN}extra:${RESET} x) View newer commits  y) View older commits  z) View recent commits"
+    fi
+    echo -ne "${GREEN}Enter the commit number to view details, or extra (x, y, z), or press Enter to go back:${RESET} "
+    read -r input
+
+    if [ -z "$input" ]; then
       return
     fi
-    if ! [[ "$commit_number" =~ ^[0-9]+$ ]] || [ "$commit_number" -ge ${#commits[@]} ]; then
-      echo -e "${RED}Invalid commit number. Please try again.${RESET}"
+
+    # Check for option 'x' to toggle view between older commits
+    if [ "$input" = "x" ]; then
+      view_all_commits=false
       continue
     fi
-    IFS='|' read -r hash author message <<< "${commits[$commit_number]}"
-    interact_with_commit "$hash"
+
+    # Check for option 'y' to toggle view between newer commits
+    if [ "$input" = "y" ]; then
+      view_all_commits=true
+      continue
+    fi
+
+    # Check for option 'z' to view all commits
+    if [ "$input" = "z" ]; then
+      view_all_commits=true
+      continue
+    fi
+
+    # Validate input as a number
+    if ! [[ "$input" =~ ^[0-9]+$ ]]; then
+      echo -e "${RED}Invalid input. Please enter a valid commit number or option.${RESET}"
+      continue
+    fi
+
+    # Check if commit number is within range
+    if [ "$input" -ge ${#commits[@]} ]; then
+      echo -e "${RED}Commit number out of range. Please try again.${RESET}"
+      continue
+    fi
+
+    commit_info="${commits[$input]}"
+    commit_hash=$(echo "$commit_info" | awk '{print $1}')
+    interact_with_commit "$commit_hash"
   done
 }
 
