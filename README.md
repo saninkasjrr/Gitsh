@@ -18,12 +18,13 @@ git clone https://github.com/saninkasjrr/jubilant-octo-spoon.git
 cd jubilant-octo-spoon
 ```
 
+
 **Make file executable**
 ```
 chmod +x git.sh
 ```
-**Make it accessible everywhere**
 
+**Make it accessible everywhere**
 on **Termux**
 ```
 chmod +x git.sh
