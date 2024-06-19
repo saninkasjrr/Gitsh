@@ -27,7 +27,7 @@ chmod +x git.sh
 **Make it accessible everywhere**
 on **Termux**
 ```
-chmod +x git.sh
+cp git.sh /data/data/com.termux/files/usr/bin/gitsh
 ```
 
 on **Linux**
