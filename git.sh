@@ -327,9 +327,19 @@ rebase_branch() {
   fi
 }
 
+# Function to display Git configuration
 display_git_config() {
-  echo -e "${GREEN}Git Configuration:${RESET}"
+  clear
+  echo -e "${GREEN}Current Git Configuration:${RESET}"
   git config --list
+
+  echo -e "${YELLOW}\nPress 'q' to return to menu.${RESET}"
+  while true; do
+    read -rsn1 key
+    if [ "$key" == "q" ]; then
+      break
+    fi
+  done
 }
 
 #}
