@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ANSI escape codes for colors
-RED='\033[0;31m'
+RED='\033[0;32m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
@@ -73,9 +73,9 @@ branch_management() {
         1)
           echo -e "${GREEN}Available branches:${RESET}"
           git branch -a
-          read -p "${GREEN}Enter the branch name to switch to:${RESET} " branch_name
+          read -p "Enter the branch name to switch to: " branch_name
           if ! git rev-parse --verify "$branch_name" >/dev/null 2>&1; then
-            echo "${RED}Invalid branch name. Please try again.${RESET}"
+            echo "Invalid branch name. Please try again."
           else
             git checkout "$branch_name"
             break 2
@@ -84,18 +84,18 @@ branch_management() {
         2)
           read -p "${GREEN}Enter the new branch name:${RESET} " branch_name
           if [ -z "$branch_name" ]; then
-            echo "${RED}Branch name cannot be empty. Please try again.${RESET}"
+            echo "Branch name cannot be empty. Please try again."
           else
             git checkout -b "$branch_name"
             break 2
           fi
           ;;
         3)
-          echo "${YELLOW}No branch changes.${RESET}"
+          echo "No branch changes."
           break 2
           ;;
         *)
-          echo "${RED}Invalid option. Please select a valid option.${RESET}"
+          echo "Invalid option. Please select a valid option."
           break
           ;;
       esac
