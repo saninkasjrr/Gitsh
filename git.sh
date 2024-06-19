@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ANSI escape codes for colors
-RED='\033[0;32m'
+RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
@@ -72,30 +72,34 @@ branch_management() {
       case $REPLY in
         1)
           echo -e "${GREEN}Available branches:${RESET}"
-          git branch -a
-          read -p "Enter the branch name to switch to: " branch_name
+          branches=($(git branch -a | sed 's/\*//g' | awk '{print $1}'))
+          for i in "${!branches[@]}"; do
+            echo "$i) ${branches[$i]}"
+          done
+          read -p "${GREEN}Enter the branch number to switch to:${RESET} " branch_number
+          branch_name=${branches[$branch_number]}
           if ! git rev-parse --verify "$branch_name" >/dev/null 2>&1; then
-            echo "Invalid branch name. Please try again."
+            echo "${RED}Invalid branch name. Please try again.${RESET}"
           else
             git checkout "$branch_name"
             break 2
           fi
           ;;
         2)
-          read -p "Enter the new branch name: " branch_name
+          read -p "${GREEN}Enter the new branch name:${RESET} " branch_name
           if [ -z "$branch_name" ]; then
-            echo "Branch name cannot be empty. Please try again."
+            echo "${RED}Branch name cannot be empty. Please try again.${RESET}"
           else
             git checkout -b "$branch_name"
             break 2
           fi
           ;;
         3)
-          echo "No branch changes."
+          echo "${YELLOW}No branch changes.${RESET}"
           break 2
           ;;
         *)
-          echo "Invalid option. Please select a valid option."
+          echo "${RED}Invalid option. Please select a valid option.${RESET}"
           break
           ;;
       esac
@@ -127,7 +131,7 @@ add_commit_changes() {
     git add "${selected_files[@]}"
   fi
 
-  read -p "Enter commit message (leave empty to open editor): " commit_message
+  read -p "${GREEN}Enter commit message (leave empty to open editor):${RESET} " commit_message
   if [ -z "$commit_message" ]; then
     git commit
   else
@@ -143,6 +147,66 @@ push_changes() {
 
   git push "$remote" "$branch"
   log_operation "Changes pushed to $remote/$branch"
+}
+
+# Function to interact with a specific commit
+interact_with_commit() {
+  commit_hash=$1
+  while true; do
+    echo -e "${GREEN}Commit details:${RESET}"
+    git show "$commit_hash"
+    echo -e "${GREEN}Choose an action:${RESET}"
+    PS3="Select commit action: "
+    options=("Revert Commit" "Delete Commit" "Back to Commit List")
+    select opt in "${options[@]}"
+    do
+      case $REPLY in
+        1)
+          git revert "$commit_hash"
+          echo -e "${GREEN}Commit reverted.${RESET}"
+          log_operation "Reverted commit: $commit_hash"
+          return
+          ;;
+        2)
+          git reset --hard "$commit_hash^"
+          echo -e "${GREEN}Commit deleted.${RESET}"
+          log_operation "Deleted commit: $commit_hash"
+          return
+          ;;
+        3)
+          return
+          ;;
+        *)
+          echo -e "${RED}Invalid option. Please select a valid option.${RESET}"
+          ;;
+      esac
+    done
+  done
+}
+
+# Function to view and interact with recent commits
+view_commits() {
+  commits=($(git log --pretty=format:"%h" -n 10))
+  if [ ${#commits[@]} -eq 0 ]; then
+    echo -e "${RED}No commits to display.${RESET}"
+    return
+  fi
+
+  while true; do
+    echo -e "${GREEN}Recent commits:${RESET}"
+    for i in "${!commits[@]}"; do
+      echo "$i) ${commits[$i]}"
+    done
+    read -p "Enter the commit number to view details or press Enter to go back: " commit_number
+    if [ -z "$commit_number" ]; then
+      return
+    fi
+    if ! [[ "$commit_number" =~ ^[0-9]+$ ]] || [ "$commit_number" -ge ${#commits[@]} ]; then
+      echo -e "${RED}Invalid commit number. Please try again.${RESET}"
+      continue
+    fi
+    interact_with_commit "${commits[$commit_number]}"
+  done
 }
 
 # Function to handle shorthand command line arguments
@@ -161,6 +225,9 @@ handle_arguments() {
     4)
       fetch_latest
       ;;
+    5)
+      view_commits
+      ;;
     *)
       echo -e "${RED}Invalid argument. Please specify a valid operation.${RESET}"
       exit 1
@@ -176,7 +243,7 @@ main_menu() {
     echo -e "${GREEN}Current branch:${RESET} $current_branch"
 
     PS3="Select an operation: "
-    options=("Add and Commit Changes" "Push Changes" "Branch Management" "Fetch Latest Changes" "Exit")
+    options=("Add and Commit Changes" "Push Changes" "Branch Management" "Fetch Latest Changes" "View Recent Commits" "Exit")
     select opt in "${options[@]}"
     do
       case $REPLY in
@@ -197,6 +264,10 @@ main_menu() {
           break
           ;;
         5)
+          view_commits
+          break
+          ;;
+        6)
           echo -e "${YELLOW}Exiting...${RESET}"
           exit 0
           ;;
