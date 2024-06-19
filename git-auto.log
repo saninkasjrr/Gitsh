@@ -22,3 +22,5 @@ Wed Jun 19 12:23:26 CAT 2024: Changes committed with message: test
 Wed Jun 19 12:23:51 CAT 2024: Changes pushed to origin/main
 Wed Jun 19 14:19:08 CAT 2024: Changes committed with message: added basic commit viewing
 Wed Jun 19 14:19:15 CAT 2024: Changes pushed to origin/main
+Wed Jun 19 15:04:54 CAT 2024: Deleted commit: 2ba900c
+Wed Jun 19 15:08:28 CAT 2024: Reverted commit: 0bc4bd7

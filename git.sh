@@ -67,44 +67,48 @@ select_files() {
 # Function to handle branch management
 branch_management() {
   while true; do
+    clear
     echo -e "${GREEN}Current branch:${RESET} $(git branch --show-current)"
     
-    PS3="Select branch action: "
+    PS3=$(echo -e "${GREEN}Select branch action:${RESET} ")
     options=("Switch Branch" "Create New Branch" "Skip")
     select opt in "${options[@]}"
     do
       case $REPLY in
         1)
           echo -e "${GREEN}Available branches:${RESET}"
-          branches=($(git branch -a | sed 's/\*//g' | awk '{print $1}'))
+          # Get a list of branches, excluding non-branch entries
+          branches=($(git branch -a | awk '!/HEAD|->|remotes\/origin/ {gsub(/^\*/, "", $0); print $0}'))
           for i in "${!branches[@]}"; do
             echo "$i) ${branches[$i]}"
           done
-          read -p "${GREEN}Enter the branch number to switch to:${RESET} " branch_number
+          read -p "$(echo -e "${GREEN}Enter the branch number to switch to:${RESET} ")" branch_number
           branch_name=${branches[$branch_number]}
           if ! git rev-parse --verify "$branch_name" >/dev/null 2>&1; then
-            echo "${RED}Invalid branch name. Please try again.${RESET}"
+            echo -e "${RED}Invalid branch name. Please try again.${RESET}"
           else
             git checkout "$branch_name"
             break 2
           fi
           ;;
         2)
-          read -p "${GREEN}Enter the new branch name:${RESET} " branch_name
+          read -p "$(echo -e "${GREEN}Enter the new branch name:${RESET} ")" branch_name
           if [ -z "$branch_name" ]; then
-            echo "${RED}Branch name cannot be empty. Please try again.${RESET}"
+            echo -e "${RED}Branch name cannot be empty. Please try again.${RESET}"
           else
-            git checkout -b "$branch_name"
-            break 2
+            if ! git checkout -b "$branch_name" 2>/dev/null; then
+              echo -e "${RED}fatal: '$branch_name' is not a valid branch name${RESET}"
+            else
+              break 2
+            fi
           fi
           ;;
         3)
-          echo "${YELLOW}No branch changes.${RESET}"
+          echo -e "${YELLOW}No branch changes.${RESET}"
           break 2
           ;;
         *)
-          echo "${RED}Invalid option. Please select a valid option.${RESET}"
-          break
+          echo -e "${RED}Invalid option. Please select a valid option.${RESET}"
           ;;
       esac
     done
@@ -135,12 +139,19 @@ add_commit_changes() {
     git add "${selected_files[@]}"
   fi
 
-  read -p "${GREEN}Enter commit message (leave empty to open editor):${RESET} " commit_message
+  echo -e "${GREEN}Enter commit message (leave empty to skip commit or use -m/-F to supply the message directly):${RESET}"
+  read -r commit_message
+
   if [ -z "$commit_message" ]; then
-    git commit
+    echo -e "${YELLOW}Skipping commit.${RESET}"
+    return
   else
-    git commit -m "$commit_message"
+    git commit -m "$commit_message" || {
+      echo -e "${RED}Error: Unable to commit. Please supply the message using either -m or -F option.${RESET}"
+      return 1
+    }
   fi
+
   log_operation "Changes committed with message: $commit_message"
 }
 
