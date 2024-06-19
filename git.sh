@@ -275,6 +275,65 @@ view_commits() {
   done
 }
 
+# experimental {
+handle_error() {
+  echo -e "${RED}An error occurred. Please check the details above.${RESET}"
+  exit 1
+}
+
+stash_changes() {
+  git stash
+  echo -e "${GREEN}Changes stashed.${RESET}"
+  log_operation "Changes stashed"
+}
+
+pull_latest() {
+  git pull
+  echo -e "${GREEN}Pulled the latest changes from the remote.${RESET}"
+  log_operation "Pulled latest changes"
+}
+
+merge_branches() {
+  echo -e "${GREEN}Available branches:${RESET}"
+  branches=($(git branch -a | awk '!/HEAD|->|remotes\/origin/ {gsub(/^\*/, "", $0); print $0}'))
+  for i in "${!branches[@]}"; do
+    echo "$i) ${branches[$i]}"
+  done
+  read -p "$(echo -e "${GREEN}Enter the branch number to merge into current branch:${RESET} ")" branch_number
+  branch_name=${branches[$branch_number]}
+  
+  if ! git merge "$branch_name"; then
+    echo -e "${RED}Merge conflict detected. Please resolve conflicts and commit manually.${RESET}"
+  else
+    echo -e "${GREEN}Merged branch ${branch_name} into $(git branch --show-current).${RESET}"
+    log_operation "Merged branch $branch_name"
+  fi
+}
+
+rebase_branch() {
+  echo -e "${GREEN}Available branches:${RESET}"
+  branches=($(git branch -a | awk '!/HEAD|->|remotes\/origin/ {gsub(/^\*/, "", $0); print $0}'))
+  for i in "${!branches[@]}"; do
+    echo "$i) ${branches[$i]}"
+  done
+  read -p "$(echo -e "${GREEN}Enter the branch number to rebase onto:${RESET} ")" branch_number
+  branch_name=${branches[$branch_number]}
+  
+  if ! git rebase "$branch_name"; then
+    echo -e "${RED}Rebase conflict detected. Please resolve conflicts and continue rebase manually.${RESET}"
+  else
+    echo -e "${GREEN}Rebased current branch onto ${branch_name}.${RESET}"
+    log_operation "Rebased onto $branch_name"
+  fi
+}
+
+display_git_config() {
+  echo -e "${GREEN}Git Configuration:${RESET}"
+  git config --list
+}
+
+#}
+
 # Function to handle shorthand command line arguments
 handle_arguments() {
   case $1 in
@@ -301,7 +360,6 @@ handle_arguments() {
   esac
 }
 
-# Main menu function
 main_menu() {
   clear
   while true; do
@@ -309,7 +367,7 @@ main_menu() {
     echo -e "${GREEN}Current branch:${RESET} $current_branch"
 
     PS3="Select an operation: "
-    options=("Add and Commit Changes" "Push Changes" "Branch Management" "Fetch Latest Changes" "View Recent Commits" "Exit")
+    options=("Add and Commit Changes" "Push Changes" "Branch Management" "Fetch Latest Changes" "Pull Latest Changes" "View Recent Commits" "Merge Branches" "Rebase Branch" "Stash Changes" "Display Git Config" "Exit")
     select opt in "${options[@]}"
     do
       case $REPLY in
@@ -330,10 +388,30 @@ main_menu() {
           break
           ;;
         5)
-          view_commits
+          pull_latest
           break
           ;;
         6)
+          view_commits
+          break
+          ;;
+        7)
+          merge_branches
+          break
+          ;;
+        8)
+          rebase_branch
+          break
+          ;;
+        9)
+          stash_changes
+          break
+          ;;
+        10)
+          display_git_config
+          break
+          ;;
+        11)
           echo -e "${YELLOW}Exiting...${RESET}"
           exit 0
           ;;
