@@ -127,7 +127,7 @@ add_commit_changes() {
     git add "${selected_files[@]}"
   fi
 
-  read -p "${GREEN}Enter commit message (leave empty to open editor):${RESET} " commit_message
+  read -p "Enter commit message (leave empty to open editor): " commit_message
   if [ -z "$commit_message" ]; then
     git commit
   else
