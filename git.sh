@@ -62,33 +62,43 @@ select_files() {
 
 # Function to handle branch management
 branch_management() {
-  current_branch=$(git branch --show-current)
-  echo -e "${GREEN}Current branch:${RESET} $current_branch"
-  
-  PS3="${GREEN}Select branch action:${RESET} "
-  options=("Switch Branch" "Create New Branch" "Skip")
-  select opt in "${options[@]}"
-  do
-    case $REPLY in
-      1)
-        read -p "${GREEN}Enter the branch name to switch to:${RESET} " branch_name
-        git checkout "$branch_name"
-        break
-        ;;
-      2)
-        read -p "${GREEN}Enter the new branch name:${RESET} " branch_name
-        git checkout -b "$branch_name"
-        break
-        ;;
-      3)
-        echo "${YELLOW}No branch changes.${RESET}"
-        break
-        ;;
-      *)
-        echo "${RED}Invalid option. No branch changes.${RESET}"
-        break
-        ;;
-    esac
+  while true; do
+    current_branch=$(git branch --show-current)
+    echo -e "${GREEN}Current branch:${RESET} $current_branch"
+    
+    PS3="${GREEN}Select branch action:${RESET} "
+    options=("Switch Branch" "Create New Branch" "Skip")
+    select opt in "${options[@]}"
+    do
+      case $REPLY in
+        1)
+          read -p "${GREEN}Enter the branch name to switch to:${RESET} " branch_name
+          if ! git rev-parse --verify "$branch_name" >/dev/null 2>&1; then
+            echo "${RED}Invalid branch name. Please try again.${RESET}"
+          else
+            git checkout "$branch_name"
+            break 2
+          fi
+          ;;
+        2)
+          read -p "${GREEN}Enter the new branch name:${RESET} " branch_name
+          if [ -z "$branch_name" ]; then
+            echo "${RED}Branch name cannot be empty. Please try again.${RESET}"
+          else
+            git checkout -b "$branch_name"
+            break 2
+          fi
+          ;;
+        3)
+          echo "${YELLOW}No branch changes.${RESET}"
+          break 2
+          ;;
+        *)
+          echo "${RED}Invalid option. Please select a valid option.${RESET}"
+          break
+          ;;
+      esac
+    done
   done
 }
 
@@ -103,76 +113,65 @@ log_operation() {
   echo "$(date): $1" >> git-auto.log
 }
 
-# Function to display the main menu using ANSI sequences
-main_menu() {
-  clear
-  while true; do
-    echo -e "${CYAN}Git Operations Menu:${RESET}"
-    PS3="${GREEN}Select an operation:${RESET} "
-    options=("Add and Commit Changes" "Push Changes" "Branch Management" "Fetch Latest Changes" "Show Git Status" "Exit")
-    select opt in "${options[@]}"
-    do
-      case $REPLY in
-        1)
-          echo -e "${GREEN}Adding and Committing Changes...${RESET}"
-          if (echo -e "${YELLOW}Do you want to add all changes? (y/n, default is y):${RESET} \c" && read -r && [[ "$REPLY" == [Yy] ]] || [[ -z "$REPLY" ]]); then
-            git add .
-          else
-            select_files
-            if [ ${#selected_files[@]} -eq 0 ]; then
-              echo -e "${RED}No valid files selected. Exiting.${RESET}"
-              exit 1
-            fi
-            git add "${selected_files[@]}"
-          fi
+# Function to add and commit changes
+add_commit_changes() {
+  if (echo -e "${YELLOW}Do you want to add all changes? (y/n, default is y):${RESET} \c" && read -r && [[ "$REPLY" == [Yy] ]] || [[ -z "$REPLY" ]]); then
+    git add .
+  else
+    select_files
+    if [ ${#selected_files[@]} -eq 0 ]; then
+      echo -e "${RED}No valid files selected. Exiting.${RESET}"
+      exit 1
+    fi
+    git add "${selected_files[@]}"
+  fi
 
-          read -p "${GREEN}Enter commit message (leave empty to open editor):${RESET} " commit_message
-          if [ -z "$commit_message" ]; then
-            git commit
-          else
-            git commit -m "$commit_message"
-          fi
-          log_operation "Changes committed with message: $commit_message"
-          break 2
-          ;;
-        2)
-          echo -e "${GREEN}Pushing Changes...${RESET}"
-          read -p "${GREEN}Enter the remote to push to (default is 'origin'):${RESET} " remote
-          remote=${remote:-origin}
+  read -p "${GREEN}Enter commit message (leave empty to open editor):${RESET} " commit_message
+  if [ -z "$commit_message" ]; then
+    git commit
+  else
+    git commit -m "$commit_message"
+  fi
+  log_operation "Changes committed with message: $commit_message"
+}
 
-          read -p "${GREEN}Enter the branch to push to (default is current branch):${RESET} " branch
-          branch=${branch:-$(git branch --show-current)}
+# Function to push changes
+push_changes() {
+  read -p "${GREEN}Enter the remote to push to (default is 'origin'):${RESET} " remote
+  remote=${remote:-origin}
 
-          git push "$remote" "$branch"
-          log_operation "Changes pushed to $remote/$branch"
-          break 2
-          ;;
-        3)
-          echo -e "${GREEN}Branch Management...${RESET}"
-          branch_management
-          break 2
-          ;;
-        4)
-          echo -e "${GREEN}Fetching Latest Changes...${RESET}"
-          fetch_latest
-          break 2
-          ;;
-        5)
-          echo -e "${GREEN}Current git status:${RESET}"
-          git status
-          break 2
-          ;;
-        6)
-          echo -e "${YELLOW}Exiting...${RESET}"
-          exit 0
-          ;;
-        *)
-          echo -e "${RED}Invalid choice, please select a valid option.${RESET}"
-          ;;
-      esac
-    done
-  done
+  read -p "${GREEN}Enter the branch to push to (default is current branch):${RESET} " branch
+  branch=${branch:-$(git branch --show-current)}
+
+  git push "$remote" "$branch"
+  log_operation "Changes pushed to $remote/$branch"
+}
+
+# Function to handle shorthand command line arguments
+handle_arguments() {
+  case $1 in
+    1)
+      add_commit_changes
+      ;;
+    2)
+      push_changes
+      ;;
+    3)
+      branch_management
+      ;;
+    4)
+      fetch_latest
+      ;;
+    *)
+      echo -e "${RED}Invalid argument. Please specify a valid operation.${RESET}"
+      exit 1
+      ;;
+  esac
 }
 
 # Main script
-main_menu
+if [ $# -eq 0 ]; then
+  main_menu
+else
+  handle_arguments "$@"
+fi
