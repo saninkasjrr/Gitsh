@@ -14,51 +14,55 @@ RESET='\033[0m' # No Color
 select_files() {
   files=($(git status --short | awk '{print $2}'))
   if [ ${#files[@]} -eq 0 ]; then
-    echo "No files to select."
+    echo -e "${RED}No files to select.${RESET}"
     exit 1
   fi
 
   selected_files=()
-  selected_indices=()
+  selected_index=0
 
   while true; do
     clear
     echo -e "${GREEN}Select files to add (Press ${YELLOW}Enter${GREEN} to confirm):${RESET}"
     for i in "${!files[@]}"; do
-      if [[ "${selected_indices[@]}" =~ $i ]]; then
+      if [ $i -eq $selected_index ]; then
         echo -e " ${GREEN}▶${RESET} ${files[$i]}"
       else
-        echo -e "   ${files[$i]}"
+        echo "   ${files[$i]}"
       fi
     done
 
     read -rsn1 key
     case "$key" in
-      '[A') # Up arrow
-        if [ ${#selected_indices[@]} -eq 0 ]; then
-          selected_indices=("${!files[@]}")
-        elif [ ${selected_indices[0]} -gt 0 ]; then
-          selected_indices=($(( ${selected_indices[@]/%/ - 1} )))
-        fi
-        ;;
-      '[B') # Down arrow
-        if [ ${#selected_indices[@]} -eq 0 ]; then
-          selected_indices=("${!files[@]}")
-        elif [ ${selected_indices[-1]} -lt $(( ${#files[@]} - 1 )) ]; then
-          selected_indices=($(( ${selected_indices[@]/%/ + 1} )))
-        fi
+      $'\x1b') # Detect escape sequence
+        read -rsn2 -t 0.1 key # Read remaining two characters
+        case "$key" in
+          '[A') # Up arrow
+            ((selected_index--))
+            if [ $selected_index -lt 0 ]; then
+              selected_index=$((${#files[@]} - 1))
+            fi
+            ;;
+          '[B') # Down arrow
+            ((selected_index++))
+            if [ $selected_index -ge ${#files[@]} ]; then
+              selected_index=0
+            fi
+            ;;
+        esac
         ;;
       '') # Enter key
-        for index in "${selected_indices[@]}"; do
-          selected_files+=("${files[$index]}")
-        done
-        return
+        selected_files+=("${files[$selected_index]}")
+        break
         ;;
       *)
         ;;
     esac
   done
+
+  echo "${selected_files[@]}"
 }
+
 
 # Function to handle branch management
 branch_management() {
@@ -153,6 +157,7 @@ push_changes() {
 interact_with_commit() {
   commit_hash=$1
   while true; do
+    clear
     echo -e "${GREEN}Commit details:${RESET}"
     git show "$commit_hash"
     echo -e "${GREEN}Choose an action:${RESET}"
@@ -186,18 +191,20 @@ interact_with_commit() {
 
 # Function to view and interact with recent commits
 view_commits() {
-  commits=($(git log --pretty=format:"%h" -n 10))
+  commits=($(git log --pretty=format:"%h|%an|%s" -n 10))
   if [ ${#commits[@]} -eq 0 ]; then
     echo -e "${RED}No commits to display.${RESET}"
     return
   fi
 
   while true; do
+    clear
     echo -e "${GREEN}Recent commits:${RESET}"
     for i in "${!commits[@]}"; do
-      echo "$i) ${commits[$i]}"
+      IFS='|' read -r hash author message <<< "${commits[$i]}"
+      echo "$i) ${hash} - ${author}: ${message}"
     done
-    read -p "Enter the commit number to view details or press Enter to go back: " commit_number
+    read -p "${GREEN}Enter the commit number to view details or press Enter to go back:${RESET} " commit_number
     if [ -z "$commit_number" ]; then
       return
     fi
@@ -205,7 +212,8 @@ view_commits() {
       echo -e "${RED}Invalid commit number. Please try again.${RESET}"
       continue
     fi
-    interact_with_commit "${commits[$commit_number]}"
+    IFS='|' read -r hash author message <<< "${commits[$commit_number]}"
+    interact_with_commit "$hash"
   done
 }
 
@@ -272,7 +280,7 @@ main_menu() {
           exit 0
           ;;
         *)
-          echo -e "${RED}Invalid choice. Please select a valid option.${RESET}"
+          echo -e "${RED}Invalid choice. Please select a valid option"
           ;;
       esac
     done
