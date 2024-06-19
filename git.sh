@@ -373,8 +373,9 @@ handle_arguments() {
 main_menu() {
   clear
   while true; do
+    repo_name=$(basename $(git rev-parse --show-toplevel))
     current_branch=$(git branch --show-current)
-    echo -e "${GREEN}Current branch:${RESET} $current_branch"
+    echo -e "${GREEN}Current branch: $current_branch   Repo: $repo_name${RESET}"
 
     PS3="Select an operation: "
     options=("Add and Commit Changes" "Push Changes" "Branch Management" "Fetch Latest Changes" "Pull Latest Changes" "View Recent Commits" "Merge Branches" "Rebase Branch" "Stash Changes" "Display Git Config" "Exit")
