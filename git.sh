@@ -82,7 +82,7 @@ branch_management() {
           fi
           ;;
         2)
-          read -p "${GREEN}Enter the new branch name:${RESET} " branch_name
+          read -p "Enter the new branch name: " branch_name
           if [ -z "$branch_name" ]; then
             echo "Branch name cannot be empty. Please try again."
           else
