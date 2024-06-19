@@ -1,100 +1,50 @@
 #!/bin/bash
 
-# ANSI escape codes for colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-MAGENTA='\033[0;35m'
-CYAN='\033[0;36m'
-WHITE='\033[1;37m'
-RESET='\033[0m' # No Color
-
-# Function to display files and get user selection using ANSI sequences
-select_files() {
-  files=($(git status --short | awk '{print $2}'))
-  if [ ${#files[@]} -eq 0 ]; then
-    echo "No files to select."
-    exit 1
+# Function to display current Git branch and status
+display_git_status() {
+  local branch=$(git branch --show-current 2>/dev/null)
+  if [ -n "$branch" ]; then
+    echo "Current branch: $branch"
+    git status --short
+  else
+    echo "Not currently on any branch."
   fi
-
-  selected_files=()
-  selected_indices=()
-
-  while true; do
-    clear
-    echo -e "${GREEN}Select files to add (Press ${YELLOW}Enter${GREEN} to confirm):${RESET}"
-    for i in "${!files[@]}"; do
-      if [[ "${selected_indices[@]}" =~ $i ]]; then
-        echo -e " ${GREEN}▶${RESET} ${files[$i]}"
-      else
-        echo -e "   ${files[$i]}"
-      fi
-    done
-
-    read -rsn1 key
-    case "$key" in
-      '[A') # Up arrow
-        if [ ${#selected_indices[@]} -eq 0 ]; then
-          selected_indices=("${!files[@]}")
-        elif [ ${selected_indices[0]} -gt 0 ]; then
-          selected_indices=($(( ${selected_indices[@]/%/ - 1} )))
-        fi
-        ;;
-      '[B') # Down arrow
-        if [ ${#selected_indices[@]} -eq 0 ]; then
-          selected_indices=("${!files[@]}")
-        elif [ ${selected_indices[-1]} -lt $(( ${#files[@]} - 1 )) ]; then
-          selected_indices=($(( ${selected_indices[@]/%/ + 1} )))
-        fi
-        ;;
-      '') # Enter key
-        for index in "${selected_indices[@]}"; do
-          selected_files+=("${files[$index]}")
-        done
-        return
-        ;;
-      *)
-        ;;
-    esac
-  done
 }
 
 # Function to handle branch management
 branch_management() {
   while true; do
-    current_branch=$(git branch --show-current)
-    echo -e "${GREEN}Current branch:${RESET} $current_branch"
+    display_git_status
     
-    PS3="${GREEN}Select branch action:${RESET} "
+    PS3="Select branch action: "
     options=("Switch Branch" "Create New Branch" "Skip")
     select opt in "${options[@]}"
     do
       case $REPLY in
         1)
-          read -p "${GREEN}Enter the branch name to switch to:${RESET} " branch_name
+          read -p "Enter the branch name to switch to: " branch_name
           if ! git rev-parse --verify "$branch_name" >/dev/null 2>&1; then
-            echo "${RED}Invalid branch name. Please try again.${RESET}"
+            echo "Invalid branch name. Please try again."
           else
             git checkout "$branch_name"
             break 2
           fi
           ;;
         2)
-          read -p "${GREEN}Enter the new branch name:${RESET} " branch_name
+          read -p "Enter the new branch name: " branch_name
           if [ -z "$branch_name" ]; then
-            echo "${RED}Branch name cannot be empty. Please try again.${RESET}"
+            echo "Branch name cannot be empty. Please try again."
           else
             git checkout -b "$branch_name"
             break 2
           fi
           ;;
         3)
-          echo "${YELLOW}No branch changes.${RESET}"
+          echo "No branch changes."
           break 2
           ;;
         *)
-          echo "${RED}Invalid option. Please select a valid option.${RESET}"
+          echo "Invalid option. Please select a valid option."
           break
           ;;
       esac
@@ -105,7 +55,7 @@ branch_management() {
 # Function to fetch the latest changes from the remote
 fetch_latest() {
   git fetch
-  echo -e "${GREEN}Fetched the latest changes from the remote.${RESET}"
+  echo "Fetched the latest changes from the remote."
 }
 
 # Function to log operations
@@ -115,18 +65,18 @@ log_operation() {
 
 # Function to add and commit changes
 add_commit_changes() {
-  if (echo -e "${YELLOW}Do you want to add all changes? (y/n, default is y):${RESET} \c" && read -r && [[ "$REPLY" == [Yy] ]] || [[ -z "$REPLY" ]]); then
+  if (echo -e "Do you want to add all changes? (y/n, default is y): \c" && read -r && [[ "$REPLY" == [Yy] ]] || [[ -z "$REPLY" ]]); then
     git add .
   else
     select_files
     if [ ${#selected_files[@]} -eq 0 ]; then
-      echo -e "${RED}No valid files selected. Exiting.${RESET}"
+      echo "No valid files selected. Exiting."
       exit 1
     fi
     git add "${selected_files[@]}"
   fi
 
-  read -p "${GREEN}Enter commit message (leave empty to open editor):${RESET} " commit_message
+  read -p "Enter commit message (leave empty to open editor): " commit_message
   if [ -z "$commit_message" ]; then
     git commit
   else
@@ -137,10 +87,10 @@ add_commit_changes() {
 
 # Function to push changes
 push_changes() {
-  read -p "${GREEN}Enter the remote to push to (default is 'origin'):${RESET} " remote
+  read -p "Enter the remote to push to (default is 'origin'): " remote
   remote=${remote:-origin}
 
-  read -p "${GREEN}Enter the branch to push to (default is current branch):${RESET} " branch
+  read -p "Enter the branch to push to (default is current branch): " branch
   branch=${branch:-$(git branch --show-current)}
 
   git push "$remote" "$branch"
@@ -163,13 +113,51 @@ handle_arguments() {
       fetch_latest
       ;;
     *)
-      echo -e "${RED}Invalid argument. Please specify a valid operation.${RESET}"
+      echo "Invalid argument. Please specify a valid operation."
       exit 1
       ;;
   esac
 }
 
-# Main script
+# Main menu function
+main_menu() {
+  while true; do
+    display_git_status
+    
+    PS3="Select an operation: "
+    options=("Add and Commit Changes" "Push Changes" "Branch Management" "Fetch Latest Changes" "Exit")
+    select opt in "${options[@]}"
+    do
+      case $REPLY in
+        1)
+          add_commit_changes
+          break
+          ;;
+        2)
+          push_changes
+          break
+          ;;
+        3)
+          branch_management
+          break
+          ;;
+        4)
+          fetch_latest
+          break
+          ;;
+        5)
+          echo "Exiting..."
+          exit 0
+          ;;
+        *)
+          echo "Invalid choice, please select a valid option."
+          ;;
+      esac
+    done
+  done
+}
+
+# Main script logic
 if [ $# -eq 0 ]; then
   main_menu
 else
