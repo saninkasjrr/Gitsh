@@ -506,64 +506,90 @@ handle_arguments() {
 
 main_menu() {
   clear
+  options=("Add and Commit Changes" "Push Changes" "Branch Management" "Fetch Latest Changes" "Pull Latest Changes" "View Recent Commits" "Merge Branches" "Rebase Branch" "Stash Changes" "Display Git Config" "Select Files to Add" "Exit")
+  selected_index=0
+
   while true; do
     current_branch=$(git branch --show-current)
+    clear
     echo -e "${GREEN}Current branch:${RESET} $current_branch"
+    echo -e "${GREEN}Select an operation (Use arrows or numbers):${RESET}"
 
-    PS3="Select an operation: "
-    options=("Add and Commit Changes" "Push Changes" "Branch Management" "Fetch Latest Changes" "Pull Latest Changes" "View Recent Commits" "Merge Branches" "Rebase Branch" "Stash Changes" "Display Git Config" "Exit")
-    select opt in "${options[@]}"
-    do
-      case $REPLY in
-        1)
-          add_commit_changes
-          break
-          ;;
-        2)
-          push_changes
-          break
-          ;;
-        3)
-          branch_management
-          break
-          ;;
-        4)
-          fetch_latest
-          break
-          ;;
-        5)
-          pull_latest
-          break
-          ;;
-        6)
-          view_commits
-          break
-          ;;
-        7)
-          merge_branches
-          break
-          ;;
-        8)
-          rebase_branch
-          break
-          ;;
-        9)
-          stash_changes
-          break
-          ;;
-        10)
-          display_git_config
-          break
-          ;;
-        11)
-          echo -e "${YELLOW}Exiting...${RESET}"
-          exit 0
-          ;;
-        *)
-          echo -e "${RED}Invalid choice. Please select a valid option"
-          ;;
-      esac
+    for i in "${!options[@]}"; do
+      if [ $i -eq $selected_index ]; then
+        echo -e " ${GREEN}▶${RESET} ${options[$i]}"
+      else
+        echo "   ${options[$i]}"
+      fi
     done
+
+    read -rsn1 key
+    case "$key" in
+      [1-9]|1[0-2]) # Number keys 1-12
+        selected_index=$((key - 1))
+        ;;
+      $'\x1b') # Detect escape sequence
+        read -rsn2 -t 0.1 key # Read remaining two characters
+        case "$key" in
+          '[A') # Up arrow
+            ((selected_index--))
+            if [ $selected_index -lt 0 ]; then
+              selected_index=$((${#options[@]} - 1))
+            fi
+            ;;
+          '[B') # Down arrow
+            ((selected_index++))
+            if [ $selected_index -ge ${#options[@]} ]; then
+              selected_index=0
+            fi
+            ;;
+        esac
+        ;;
+      '') # Enter key
+        case $selected_index in
+          0)
+            add_commit_changes
+            ;;
+          1)
+            push_changes
+            ;;
+          2)
+            branch_management
+            ;;
+          3)
+            fetch_latest
+            ;;
+          4)
+            pull_latest
+            ;;
+          5)
+            view_commits
+            ;;
+          6)
+            merge_branches
+            ;;
+          7)
+            rebase_branch
+            ;;
+          8)
+            stash_changes
+            ;;
+          9)
+            display_git_config
+            ;;
+          10)
+            select_files
+            ;;
+          11)
+            echo -e "${YELLOW}Exiting...${RESET}"
+            exit 0
+            ;;
+        esac
+        ;;
+      *)
+        echo -e "${RED}Invalid choice. Please select a valid option${RESET}"
+        ;;
+    esac
   done
 }
 
