@@ -303,7 +303,42 @@ merge_branches() {
   branch_name=${branches[$branch_number]}
   
   if ! git merge "$branch_name"; then
-    echo -e "${RED}Merge conflict detected. Please resolve conflicts and commit manually.${RESET}"
+    while true; do
+      echo -e "${RED}Merge conflict detected or an error occurred. Please select an option to proceed:${RESET}"
+      PS3="Select an option: "
+      options=("Stash changes and retry merge" "Abort merge" "Manual conflict resolution" "Return to main menu")
+      select opt in "${options[@]}"; do
+        case $REPLY in
+          1)
+            git stash
+            echo -e "${GREEN}Changes stashed. Retrying merge...${RESET}"
+            if git merge "$branch_name"; then
+              echo -e "${GREEN}Merge successful.${RESET}"
+              log_operation "Merged branch $branch_name after stashing changes"
+              return
+            else
+              echo -e "${RED}Merge conflict detected again.${RESET}"
+            fi
+            ;;
+          2)
+            git merge --abort
+            echo -e "${YELLOW}Merge aborted.${RESET}"
+            return
+            ;;
+          3)
+            echo -e "${YELLOW}Please resolve conflicts manually and commit the changes.${RESET}"
+            return
+            ;;
+          4)
+            echo -e "${YELLOW}Returning to main menu...${RESET}"
+            return
+            ;;
+          *)
+            echo -e "${RED}Invalid option. Please select a valid option.${RESET}"
+            ;;
+        esac
+      done
+    done
   else
     echo -e "${GREEN}Merged branch ${branch_name} into $(git branch --show-current).${RESET}"
     log_operation "Merged branch $branch_name"
@@ -345,14 +380,69 @@ display_git_config() {
 #}
 
 # Function to handle shorthand command line arguments
+# Function to display help message
+display_help() {
+  echo -e "${GREEN}Usage: ${0} [option] [arguments]${RESET}"
+  echo -e "${YELLOW}Options:${RESET}"
+  echo -e "  ${BLUE}1${RESET}                    Add and commit changes"
+  echo -e "  ${BLUE}2 <remote>${RESET}           Push changes (default: origin)"
+  echo -e "  ${BLUE}3${RESET}                    Branch management"
+  echo -e "  ${BLUE}4${RESET}                    Fetch latest changes"
+  echo -e "  ${BLUE}5${RESET}                    View recent commits"
+  echo -e "  ${BLUE}6${RESET}                    Pull latest changes"
+  echo -e "  ${BLUE}7 <branch>${RESET}           Merge branch into current branch"
+  echo -e "  ${BLUE}8 <branch>${RESET}           Rebase current branch onto specified branch"
+  echo -e "  ${BLUE}9${RESET}                    Stash changes"
+  echo -e "  ${BLUE}10${RESET}                   Display Git config"
+  echo -e "  ${BLUE}11 <commit>${RESET}          Interact with a specific commit"
+  echo -e "  ${BLUE}12${RESET}                   Display this help message"
+  echo -e "  ${BLUE}13${RESET}                   Exit"
+}
+
+# Function to validate branch name
+validate_branch() {
+  if ! git rev-parse --verify "$1" >/dev/null 2>&1; then
+    echo -e "${RED}Invalid branch name: $1${RESET}"
+    exit 1
+  fi
+}
+
+# Function to validate commit hash
+validate_commit() {
+  if ! git cat-file -e "$1" 2>/dev/null; then
+    echo -e "${RED}Invalid commit hash: $1${RESET}"
+    exit 1
+  fi
+}
+
+# Function to validate options and arguments
+validate_arguments() {
+  if [ -z "$1" ]; then
+    echo -e "${RED}Error: No option provided.${RESET}"
+    display_help
+    exit 1
+  fi
+}
+
+# Function to execute a command and handle errors
+execute_command() {
+  if ! "$@"; then
+    echo -e "${RED}Error: Command failed: $*${RESET}"
+    exit 1
+  fi
+}
+
+# Function to handle shorthand command line arguments
 handle_arguments() {
+  validate_arguments "$1"
   case $1 in
     1)
       add_commit_changes
       ;;
     2)
-      shift  # Remove the first argument (operation number)
-      push_changes "$@"
+      shift
+      remote="${1:-origin}"
+      execute_command push_changes "$remote"
       ;;
     3)
       branch_management
@@ -363,8 +453,52 @@ handle_arguments() {
     5)
       view_commits
       ;;
+    6)
+      pull_latest
+      ;;
+    7)
+      shift
+      if [ -z "$1" ]; then
+        echo -e "${RED}Error: No branch specified for merging.${RESET}"
+        exit 1
+      fi
+      validate_branch "$1"
+      execute_command merge_branches "$1"
+      ;;
+    8)
+      shift
+      if [ -z "$1" ]; then
+        echo -e "${RED}Error: No branch specified for rebasing.${RESET}"
+        exit 1
+      fi
+      validate_branch "$1"
+      execute_command rebase_branch "$1"
+      ;;
+    9)
+      stash_changes
+      ;;
+    10)
+      display_git_config
+      ;;
+    11)
+      shift
+      if [ -z "$1" ]; then
+        echo -e "${RED}Error: No commit hash specified.${RESET}"
+        exit 1
+      fi
+      validate_commit "$1"
+      execute_command interact_with_commit "$1"
+      ;;
+    12)
+      display_help
+      ;;
+    13)
+      echo -e "${YELLOW}Exiting...${RESET}"
+      exit 0
+      ;;
     *)
-      echo -e "${RED}Invalid argument. Please specify a valid operation.${RESET}"
+      echo -e "${RED}Invalid argument: $1${RESET}"
+      display_help
       exit 1
       ;;
   esac
@@ -373,9 +507,8 @@ handle_arguments() {
 main_menu() {
   clear
   while true; do
-    repo_name=$(basename $(git rev-parse --show-toplevel))
     current_branch=$(git branch --show-current)
-    echo -e "${GREEN}Current branch: $current_branch   Repo: $repo_name${RESET}"
+    echo -e "${GREEN}Current branch:${RESET} $current_branch"
 
     PS3="Select an operation: "
     options=("Add and Commit Changes" "Push Changes" "Branch Management" "Fetch Latest Changes" "Pull Latest Changes" "View Recent Commits" "Merge Branches" "Rebase Branch" "Stash Changes" "Display Git Config" "Exit")
