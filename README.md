@@ -1,12 +1,14 @@
 # Gitsh installation 
 
-this is a simple bash script that automates  Git operations with a simple and easy interface.
+this is a simple bash script that makes  **Git** easier to use with a simple and easy interface.
 
- It supports 
-adding and committing changes
-pushing to a remote repository
-branch management
-fetching.
+ It supports basic git functions.
+ 
+**adding,
+committing,
+pushing,
+branch management,
+fetching and pulling and more**
 
 **How to install**
 ```
@@ -52,3 +54,17 @@ once you are familiar with it, you can use shorthand syntax to quickly perform o
 ```
 gitsh 1 //to add and commit.
 ```
+
+```
+gitsh 2 //for pushing
+```
+
+```
+gitsh 3 //for branch management(switching branches and more)
+```
+
+****
+just memorize what the numbers are for, and you are good to use the shorthand
+****
+
+*thank you for using gitsh.*
