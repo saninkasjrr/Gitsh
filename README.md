@@ -17,7 +17,7 @@ git clone https://github.com/saninkasjrr/Gitsh.git
 
 **Navigate to the folder**                   
 ```
-cd jubilant-octo-spoon
+cd Gitsh
 ```
 
 
