@@ -12,7 +12,7 @@ fetching and pulling and more**
 
 **How to install**
 ```
-git clone https://github.com/saninkasjrr/jubilant-octo-spoon.git
+git clone https://github.com/saninkasjrr/Gitsh.git
 ```
 
 **Navigate to the folder**                   
